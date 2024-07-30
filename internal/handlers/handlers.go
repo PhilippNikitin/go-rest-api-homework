@@ -4,6 +4,8 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -11,6 +13,10 @@ import (
 	"github.com/Yandex-Practicum/go-rest-api-homework/internal/db"
 	"github.com/Yandex-Practicum/go-rest-api-homework/internal/models"
 )
+
+// статически создаем ошибку для обработки ситуации, когда в JSON от клиента указана
+// задача с ID, который уже присутствует в мапе
+var ErrExistingID = errors.New("задача с таким ID уже присутствует в списке дел")
 
 // Параметры (для всех хендлеров)
 // w - параметр типа http.ResponseWriter, т.е. ответ сервера клиенту
@@ -30,8 +36,15 @@ func GetTasks(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	// записываем в заголовок статус OK
 	w.WriteHeader(http.StatusOK)
-	// записываем сериализованные в JSON данные в тело ответа
-	w.Write(resp)
+	// записываем сериализованные в формат JSON данные в тело ответа
+	_, err = w.Write(resp)
+	if err != nil {
+		// если возникает ошибка при записи сериализованных данных в ответ,
+		// логируем ее в консоль и возвращаем клиенту статус "500 Internal Server Error"
+		fmt.Printf("Ошибка при записи сериализованных данных в тело ответа: %v\n", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
 // Хендлер PostTask для добавления новой задачи в мапу tasks на основании данных запроса от клиента
@@ -53,6 +66,14 @@ func PostTask(w http.ResponseWriter, r *http.Request) {
 	// при ошибке возвращаем клиенту ответ "400 Bad Request"
 	if err = json.Unmarshal(buf.Bytes(), &task); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// проверяем, существует ли уже в мапе задача с тем же ID, который был получен от клиента
+	_, found := db.Tasks[task.ID]
+	// если задача с таким ID уже есть в мапе с делами, возвращаем ошибку ErrExistingID и статус "400 Bad Request"
+	if found {
+		http.Error(w, ErrExistingID.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -79,16 +100,23 @@ func GetTask(w http.ResponseWriter, r *http.Request) {
 
 	// если задача найдена, сериализуем ее данные и сохраняем в переменную resp
 	resp, err := json.Marshal(task)
-	// при ошибке возвращаем ответ "400 Bad Request"
+	// при ошибке возвращаем ответ "500 Internal Server Error"
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	// в заголовок записываем тип контента: данные в формате JSON
 	w.Header().Set("Content-Type", "application/json")
 	// записываем в заголовок статус OK
 	w.WriteHeader(http.StatusOK)
-	w.Write(resp)
+	_, err = w.Write(resp)
+	if err != nil {
+		// если возникает ошибка при записи сериализованных данных в ответ,
+		// логируем ее в консоль и возвращаем клиенту статус "500 Internal Server Error"
+		fmt.Printf("Ошибка при записи сериализованных данных в тело ответа: %v\n", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
 // Хендлер DeleteTask для удаления задачи по ID
