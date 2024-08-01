@@ -1,21 +1,9 @@
-package main
+package db
 
-import (
-	"fmt"
-	"net/http"
+import "github.com/Yandex-Practicum/go-rest-api-homework/internal/models"
 
-	"github.com/go-chi/chi/v5"
-)
-
-// Task ...
-type Task struct {
-	ID           string   `json:"id"`
-	Description  string   `json:"description"`
-	Note         string   `json:"note"`
-	Applications []string `json:"applications"`
-}
-
-var tasks = map[string]Task{
+// мапа для хранения задач TODO
+var Tasks = map[string]models.Task{
 	"1": {
 		ID:          "1",
 		Description: "Сделать финальное задание темы REST API",
@@ -37,19 +25,4 @@ var tasks = map[string]Task{
 			"Postman",
 		},
 	},
-}
-
-// Ниже напишите обработчики для каждого эндпоинта
-// ...
-
-func main() {
-	r := chi.NewRouter()
-
-	// здесь регистрируйте ваши обработчики
-	// ...
-
-	if err := http.ListenAndServe(":8080", r); err != nil {
-		fmt.Printf("Ошибка при запуске сервера: %s", err.Error())
-		return
-	}
 }
